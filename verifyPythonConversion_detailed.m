@@ -12,7 +12,7 @@ clear
 close all
 
 % 例えば↓
-pyenv("Version","/Users/yyoshimula/.pyenv/versions/matlab310/bin/python")
+% pyenv("Version","/path/to/your/python")
 
 %% Configuration
 config.tol = 1e-10;

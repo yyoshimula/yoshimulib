@@ -37,6 +37,9 @@ def oe2rv(oe: np.ndarray, flag: int, mu: float) -> tuple[np.ndarray, np.ndarray]
     Notes
     -----
     Units must be consistent between mu and position/velocity.
+    All supplied orientation angles are applied, including for circular and
+    equatorial orbits. Although the individual angles are then non-unique,
+    their combined orientation/phase must be preserved in the returned state.
 
     References
     ----------
@@ -67,11 +70,9 @@ def oe2rv(oe: np.ndarray, flag: int, mu: float) -> tuple[np.ndarray, np.ndarray]
     else:  # mean anomaly
         f, _ = true_anomaly(a, e, np.mod(oe[:, 5], 2 * np.pi))
 
-    # If orbit is circular, ome = 0
-    ome = ome * (e > small)
-
-    # If orbit is equatorial, raan = 0
-    raan = raan * (inc > small) * (np.abs(inc - np.pi) > small)
+    # Preserve the supplied orientation even for circular/equatorial orbits.
+    # Individual angles are not unique there, but their combined phase still
+    # determines the state. Zeroing omega or RAAN alone changes that state.
 
     # Semi-latus rectum
     p = a * (1 - e ** 2)

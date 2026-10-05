@@ -8,6 +8,14 @@ from typing import Tuple, Any
 from ..object import SatelliteModel
 
 
+def _colon(start: float, stop: float, n: int) -> np.ndarray:
+    """
+    Integration bounds start:(stop - start)/n:stop of MATLAB, n + 1 points
+    (np.arange with a float step may add a point beyond stop).
+    """
+    return np.linspace(start, stop, n + 1)
+
+
 def ct_m(sat: SatelliteModel, v: np.ndarray, sun_b: np.ndarray) -> float:
     """
     # Calculating remaining term M in the Cook-Torrance model
@@ -444,11 +452,8 @@ def srp_approx_ct(sat: SatelliteModel, theta_n: float, sun_b: np.ndarray,
     sunlit_flag = float(np.dot(sat_normal, sun_b) > 0)
 
     # Quarter-sphere, +y direction integration range
-    theta_w = (np.pi / 2 + theta_n) / 2 / n_theta
-    phi_w = np.pi / n_phi
-
-    phi_vals = np.arange(0, np.pi + phi_w, phi_w)
-    theta_vals = np.arange(0, (np.pi / 2 + theta_n) / 2 + theta_w, theta_w)
+    phi_vals = _colon(0, np.pi, n_phi)
+    theta_vals = _colon(0, (np.pi / 2 + theta_n) / 2, n_theta)
     phi_bound, theta_bound = np.meshgrid(phi_vals, theta_vals)
 
     alp_, bet_ = calc_coeff(phi_bound, theta_bound, theta_n, sat_normal, lam, c_coef)
@@ -466,9 +471,8 @@ def srp_approx_ct(sat: SatelliteModel, theta_n: float, sun_b: np.ndarray,
             B = B + Btmp
 
     # Partial hemisphere, -y direction integration range
-    theta_w = (np.pi / 2 - theta_n) / 2 / n_theta
-    phi_vals = np.arange(np.pi, 2 * np.pi + phi_w, phi_w)
-    theta_vals = np.arange(0, (np.pi / 2 - theta_n) / 2 + theta_w, theta_w)
+    phi_vals = _colon(np.pi, 2 * np.pi, n_phi)
+    theta_vals = _colon(0, (np.pi / 2 - theta_n) / 2, n_theta)
     phi_bound, theta_bound = np.meshgrid(phi_vals, theta_vals)
 
     alp_, bet_ = calc_coeff(phi_bound, theta_bound, theta_n, sat_normal, lam, c_coef)
@@ -572,11 +576,8 @@ def srp_approx_ct2(sat: SatelliteModel, theta_n: np.ndarray, sun_b: np.ndarray,
         lam_tmp = lam[i]
 
         # Quarter-sphere, +y direction
-        theta_w = (np.pi / 2 + theta_n[i]) / 2 / n_theta
-        phi_w = np.pi / n_phi
-
-        phi_vals = np.arange(0, np.pi + phi_w, phi_w)
-        theta_vals = np.arange(0, (np.pi / 2 + theta_n[i]) / 2 + theta_w, theta_w)
+        phi_vals = _colon(0, np.pi, n_phi)
+        theta_vals = _colon(0, (np.pi / 2 + theta_n[i]) / 2, n_theta)
         phi_bound, theta_bound = np.meshgrid(phi_vals, theta_vals)
 
         alp_, bet_ = calc_coeff(phi_bound, theta_bound, theta_n[i], sat_n, lam_tmp, mu)
@@ -594,9 +595,8 @@ def srp_approx_ct2(sat: SatelliteModel, theta_n: np.ndarray, sun_b: np.ndarray,
                 B = B + Btmp
 
         # Partial hemisphere, -y direction
-        theta_w = (np.pi / 2 - theta_n[i]) / 2 / n_theta
-        phi_vals = np.arange(np.pi, 2 * np.pi + phi_w, phi_w)
-        theta_vals = np.arange(0, (np.pi / 2 - theta_n[i]) / 2 + theta_w, theta_w)
+        phi_vals = _colon(np.pi, 2 * np.pi, n_phi)
+        theta_vals = _colon(0, (np.pi / 2 - theta_n[i]) / 2, n_theta)
         phi_bound, theta_bound = np.meshgrid(phi_vals, theta_vals)
 
         alp_, bet_ = calc_coeff(phi_bound, theta_bound, theta_n[i], sat_n, lam_tmp, mu)

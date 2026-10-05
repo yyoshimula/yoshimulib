@@ -6,6 +6,7 @@ Python conversion from yMATLAB/ukfCkf/
 """
 
 from .ukf import (
+    ukf_init_para,
     set_ukf_para,
     ukf_sigma,
     ukf_cov,
@@ -24,7 +25,7 @@ from .ckf import (
 
 __all__ = [
     # UKF
-    'set_ukf_para', 'ukf_sigma', 'ukf_cov', 'ukf_corr_gain', 'ukf',
+    'ukf_init_para', 'set_ukf_para', 'ukf_sigma', 'ukf_cov', 'ukf_corr_gain', 'ukf',
     # CKF
     'ckf_sigma', 'ckf_cov', 'ckf_corr_gain',
     # SRCKF

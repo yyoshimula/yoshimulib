@@ -7,9 +7,78 @@ import numpy as np
 from typing import Callable
 
 
+def ukf_init_para(n: int, ukf: dict = None) -> dict:
+    """
+    # Initialize UKF parameters and weights
+
+    Parameters
+    ----------
+    n : int
+        number of state variables
+    ukf : dict, optional
+        UKF parameters set in advance. The entries 'alp', 'bet', 'kappa',
+        'lam', 'wm' and 'wc' are used as they are when given, and the
+        missing ones are filled with the default values.
+
+    Returns
+    -------
+    ukf : dict
+        UKF parameter dictionary containing:
+        - n: number of state variables
+        - alp, bet, kappa: tuning parameters (default: 1e-4, 2, 3 - n)
+        - lam: lambda parameter (default: alp^2 * (n + kappa) - n)
+        - wm: weights for mean (2n+1,)
+        - wc: weights for covariance (2n+1,)
+
+    Notes
+    -----
+    MATLAB: ukfInitPara (formerly setUKFpara). The MATLAB field `lambda`
+    corresponds to 'lam' and `n_` to 'n'.
+
+    Revisions
+    ---------
+    20260302  y.yoshimura, renamed from setUKFpara, number of state variables n added
+
+    See also
+    --------
+    ukf_sigma, ukf
+    """
+    ukf = dict(ukf) if ukf is not None else {}
+
+    ukf['n'] = n
+
+    # Tuning parameters
+    ukf.setdefault('alp', 1e-4)
+    ukf.setdefault('bet', 2)
+    ukf.setdefault('kappa', 3 - n)
+    ukf.setdefault('lam', ukf['alp'] ** 2 * (n + ukf['kappa']) - n)
+
+    # Weights
+    lam = ukf['lam']
+
+    if 'wm' not in ukf:
+        wm = np.zeros(2 * n + 1)
+        wm[0] = lam / (n + lam)  # for mean
+        wm[1:] = 1 / (2 * (n + lam))
+        ukf['wm'] = wm
+    ukf['wm'] = np.asarray(ukf['wm'], dtype=float).flatten()
+
+    if 'wc' not in ukf:
+        wc = np.zeros(2 * n + 1)
+        wc[0] = lam / (n + lam) + 1 - ukf['alp'] ** 2 + ukf['bet']
+        wc[1:] = ukf['wm'][1:]
+        ukf['wc'] = wc
+    ukf['wc'] = np.asarray(ukf['wc'], dtype=float).flatten()
+
+    return ukf
+
+
+# %[appendix]{"version":"1.0"}
+
+
 def set_ukf_para(n: int, alp: float = None, bet: float = None, kappa: float = None) -> dict:
     """
-    # Set UKF parameters and weights
+    # Set UKF parameters and weights (former name of ukf_init_para)
 
     Parameters
     ----------
@@ -26,6 +95,7 @@ def set_ukf_para(n: int, alp: float = None, bet: float = None, kappa: float = No
     -------
     ukf : dict
         UKF parameter dictionary containing:
+        - n: number of state variables
         - alp, bet, kappa: tuning parameters
         - lam: lambda parameter
         - wm: weights for mean (2n+1,)
@@ -33,7 +103,7 @@ def set_ukf_para(n: int, alp: float = None, bet: float = None, kappa: float = No
 
     Notes
     -----
-    NA
+    Kept for backward compatibility; MATLAB renamed setUKFpara to ukfInitPara.
 
     Revisions
     ---------
@@ -41,31 +111,11 @@ def set_ukf_para(n: int, alp: float = None, bet: float = None, kappa: float = No
 
     See also
     --------
-    ukf_sigma
+    ukf_init_para, ukf_sigma
     """
-    ukf = {}
+    given = {'alp': alp, 'bet': bet, 'kappa': kappa}
 
-    # Tuning parameters
-    ukf['alp'] = alp if alp is not None else 1e-4
-    ukf['bet'] = bet if bet is not None else 2
-    ukf['kappa'] = kappa if kappa is not None else 3 - n
-    ukf['lam'] = ukf['alp'] ** 2 * (n + ukf['kappa']) - n
-
-    # Weights
-    lam = ukf['lam']
-    wm = np.zeros(2 * n + 1)
-    wc = np.zeros(2 * n + 1)
-
-    wm[0] = lam / (n + lam)
-    wm[1:] = 1 / (2 * (n + lam))
-
-    wc[0] = lam / (n + lam) + 1 - ukf['alp'] ** 2 + ukf['bet']
-    wc[1:] = wm[1:]
-
-    ukf['wm'] = wm
-    ukf['wc'] = wc
-
-    return ukf
+    return ukf_init_para(n, {k: val for k, val in given.items() if val is not None})
 
 
 # %[appendix]{"version":"1.0"}

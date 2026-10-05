@@ -50,7 +50,7 @@ mjd = yl.time_utils.jd2mjd(jd)                     # JD → 修正ユリウス�
 | モジュール    | 説明                                                         |
 | ------------- | ------------------------------------------------------------ |
 | `orbit`       | 軌道力学、ケプラー方程式、EGM2008、座標変換 (GCRF/ITRF/TEME) |
-| `environment` | IGRF-12磁場モデル、Jaccia-Bowman 2008大気モデル、NRLMSISE-00 |
+| `environment` | IGRF-12磁場モデル、Jaccia-Bowman 2008 / Jacchia-Roberts 1971大気モデル、NRLMSISE-00、宇宙天気指数 (CelesTrak SW-All.csv) |
 | `sun_moon`    | 太陽・月の暦 (ELP2000-82)                                    |
 
 ### 高レベルアプリケーション
@@ -147,7 +147,7 @@ mjd = yl.time_utils.jd2mjd(jd)                     # JD to Modified JD
 | Module        | Description                                                                           |
 | ------------- | ------------------------------------------------------------------------------------- |
 | `orbit`       | Orbital mechanics, Kepler's equation, EGM2008, coordinate transforms (GCRF/ITRF/TEME) |
-| `environment` | IGRF-12 magnetic field, Jaccia-Bowman 2008 atmosphere, NRLMSISE-00                    |
+| `environment` | IGRF-12 magnetic field, Jaccia-Bowman 2008 / Jacchia-Roberts 1971 atmosphere, NRLMSISE-00, space weather indices (CelesTrak SW-All.csv) |
 | `sun_moon`    | Solar and lunar ephemerides (ELP2000-82)                                              |
 
 ### High-Level Applications

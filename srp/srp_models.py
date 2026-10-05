@@ -130,6 +130,10 @@ def srp_as(sat: SatelliteModel, sun_b: np.ndarray, d: float, const,
     Revisions
     ---------
     y.yoshimura, y.yoshimula@gmail.com
+    20260911  y.yoshimura, importance sampling fixed: quadrants of phi_h are
+              mirror images (pi - phi, pi + phi, 2pi - phi) and the extra
+              1/(n.h) is removed from the weight
+    20261005  y.yoshimura, diffuse term per facet along the facet normal
 
     See also
     --------
@@ -151,8 +155,10 @@ def srp_as(sat: SatelliteModel, sun_b: np.ndarray, d: float, const,
 
     # Diffuse (analytic)
     cd1 = 28 / 23 * sat.Cd / np.pi * (1 - sat.F0) * (1 - (1 - NS / 2) ** 5)
-    srp_cd = np.zeros((n_facet, 3))
-    srp_cd[:, 2] = cd1 * 1573 / 2688 * np.pi
+    # each facet has its own coefficient, along its own normal:
+    # int (1 - (1 - n.v/2)^5) (n.v) v dw = 1573/2688 * pi * n over the hemisphere
+    # (a vector along the body z-axis was valid only for a facet whose normal is +z)
+    srp_cd = (cd1 * 1573 / 2688 * np.pi)[:, np.newaxis] * sat.normal  # n_facet x 3
 
     # Specular (numerical)
     # Transform to local frame (normal vector is along z-axis)
@@ -176,9 +182,12 @@ def srp_as(sat: SatelliteModel, sun_b: np.ndarray, d: float, const,
                                   np.where(ind3, 4 * (u1 - 0.5), 4 * (u1 - 0.75))))
 
     phi_h_base = phi_fun(u1_scaled, sat.nu[:, np.newaxis], sat.nv[:, np.newaxis])
+    # p(phi) is symmetric about phi = pi/2, pi, 3pi/2, so the other quadrants are
+    # mirror images of the first quadrant: pi-phi, pi+phi, 2pi-phi (shifting by
+    # +pi/2 would swap the roles of nu and nv and is wrong unless nu == nv)
     phi_h = np.where(ind1, phi_h_base,
-                     np.where(ind2, phi_h_base + np.pi / 2,
-                              np.where(ind3, phi_h_base + np.pi, phi_h_base + 3 / 2 * np.pi)))
+                     np.where(ind2, np.pi - phi_h_base,
+                              np.where(ind3, np.pi + phi_h_base, 2 * np.pi - phi_h_base)))
 
     exp_val = sat.nu[:, np.newaxis] * np.cos(phi_h) ** 2 + sat.nv[:, np.newaxis] * np.sin(phi_h) ** 2 + 1
     theta_h = np.arccos(u2 ** (1 / exp_val))
@@ -204,7 +213,10 @@ def srp_as(sat: SatelliteModel, sun_b: np.ndarray, d: float, const,
     M = np.where(np.isinf(M), 0, M)
 
     # Weight
-    W = np.abs(SH) * NV / NH * M
+    # h is sampled with the AS pdf p_h = sqrt((nu+1)(nv+1))/(2pi) (n.h)^k, which is
+    # already normalized on d(omega_h); the 1/(n.h) factor used for Beckmann
+    # (srp_ct, whose pdf is D(h)(n.h)) must NOT be applied here (cf. srp_as_uni)
+    W = np.abs(SH) * NV * M
     tmp = W * F
 
     # For SRP
@@ -272,6 +284,7 @@ def srp_ct(sat: SatelliteModel, sun_b: np.ndarray, d: float, const,
     Revisions
     ---------
     y.yoshimura, y.yoshimula@gmail.com
+    20260706  y.yoshimura, weight for the Gaussian NDF fixed (uniform sampling of v)
 
     See also
     --------
@@ -326,6 +339,10 @@ def srp_ct(sat: SatelliteModel, sun_b: np.ndarray, d: float, const,
         hy = hy / h_norm
         hz = hz / h_norm
 
+        theta_h = np.arccos(hz)
+
+        D = np.exp(-(theta_h / sat.mCT[:, np.newaxis]) ** 2)  # Gaussian distribution
+
     # Integration
     SH = s_local[:, 0:1] * hx + s_local[:, 1:2] * hy + s_local[:, 2:3] * hz
     vx = 2 * SH * hx - s_local[:, 0:1]
@@ -349,7 +366,13 @@ def srp_ct(sat: SatelliteModel, sun_b: np.ndarray, d: float, const,
     F = temp1 * temp2
 
     # Weight
-    W = np.abs(SH) * G / NS[:, np.newaxis] / NH
+    if ndf == 'Beckmann':
+        # h is importance-sampled with pdf D(theta_h)*cos(theta_h), so D cancels
+        W = np.abs(SH) * G / NS[:, np.newaxis] / NH
+    else:
+        # v is sampled uniformly in (theta_r, phi_r) with pdf 1/pi^2, so D and
+        # the sin(theta_r) Jacobian remain in the weight (cf. srp_ct_uni)
+        W = np.pi ** 2 / 4 * D * G * np.sin(theta_r) / NS[:, np.newaxis]
     tmp = W * F
     tmp = np.where(np.isnan(tmp), 0, tmp)
 
@@ -485,6 +508,7 @@ def srp_as_uni(sat: 'SatelliteModel', sun_b: np.ndarray, d: float, const,
     Revisions
     ---------
     y.yoshimura, y.yoshimula@gmail.com
+    20261005  y.yoshimura, diffuse term per facet along the facet normal
 
     See also
     --------
@@ -502,7 +526,6 @@ def srp_as_uni(sat: 'SatelliteModel', sun_b: np.ndarray, d: float, const,
     sun_b = sun_b / np.linalg.norm(sun_b)
 
     NS = sat.normal @ sun_b  # n_facet x 1
-    n_facet = sat.normal.shape[0]
 
     # Uniform sampling for spherical integration (not hemispherical)
     theta_r = np.pi * np.random.rand(n_mc)
@@ -521,8 +544,8 @@ def srp_as_uni(sat: 'SatelliteModel', sun_b: np.ndarray, d: float, const,
 
     # Diffuse (analytic)
     cd1 = 28 / 23 * sat.Cd / np.pi * (1 - sat.F0) * (1 - (1 - NS / 2)**5)  # n_facet
-    srp_cd = np.zeros((n_facet, 3))
-    srp_cd[:, 2] = np.sum(cd1) * 1573 / 2688 * np.pi
+    # each facet has its own coefficient, along its own normal (cf. srp_as)
+    srp_cd = (cd1 * 1573 / 2688 * np.pi)[:, np.newaxis] * sat.normal  # n_facet x 3
 
     # Specular (numerical)
     F = sat.F0[:, np.newaxis] + (1 - sat.F0[:, np.newaxis]) * (1 - VH)**5  # n_facet x n_mc
@@ -533,7 +556,9 @@ def srp_as_uni(sat: 'SatelliteModel', sun_b: np.ndarray, d: float, const,
 
     k2 = (sat.nu[:, np.newaxis] * (sat.uu @ h.T)**2 +
           sat.nv[:, np.newaxis] * (sat.uv @ h.T)**2) / (1 - NH**2 + 1e-10)
-    D = NH ** k2  # n_facet x n_mc
+    # Only v with NV > 0 (hence NH > 0 on a sunlit facet) contributes; a negative
+    # base would give NaN here (complex in MATLAB, removed by the NV > 0 mask)
+    D = np.maximum(NH, 0.0) ** k2  # n_facet x n_mc
 
     tmp = k1[:, np.newaxis] * F * M * D * NV * np.sin(theta_r)  # n_facet x n_mc
 

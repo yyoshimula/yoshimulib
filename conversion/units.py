@@ -14,8 +14,9 @@ def au2km(au: float | np.ndarray, au_const: float = 149597870.7) -> float | np.n
     ----------
     au : float or np.ndarray
         distance to be converted, AU
-    au_const : float, optional
-        AU constant in km (default: 149597870.7 km, IAU 2012)
+    au_const : float or OrbitalConstants, optional
+        AU constant in km (default: 149597870.7 km, IAU 2012), or the orbital
+        constants (as in MATLAB, where const.AU is used)
 
     Returns
     -------
@@ -38,7 +39,7 @@ def au2km(au: float | np.ndarray, au_const: float = 149597870.7) -> float | np.n
     --------
     km2au
     """
-    km = au * au_const
+    km = au * getattr(au_const, 'AU', au_const)
 
     return km
 
@@ -54,8 +55,9 @@ def km2au(km: float | np.ndarray, au_const: float = 149597870.7) -> float | np.n
     ----------
     km : float or np.ndarray
         distance to be converted, km
-    au_const : float, optional
-        AU constant in km (default: 149597870.7 km, IAU 2012)
+    au_const : float or OrbitalConstants, optional
+        AU constant in km (default: 149597870.7 km, IAU 2012), or the orbital
+        constants (as in MATLAB, where const.AU is used)
 
     Returns
     -------
@@ -78,7 +80,7 @@ def km2au(km: float | np.ndarray, au_const: float = 149597870.7) -> float | np.n
     --------
     au2km
     """
-    au = km / au_const
+    au = km / getattr(au_const, 'AU', au_const)
 
     return au
 
@@ -166,16 +168,16 @@ def hms2deg(hour: float | np.ndarray,
             minute: float | np.ndarray,
             sec: float | np.ndarray) -> float | np.ndarray:
     """
-    # hour, min, and sec angles to deg
+    # degree, arcminute, arcsecond to degree (DMS -> deg)
 
     Parameters
     ----------
     hour : float or np.ndarray
-        hour angle
+        degree part, deg
     minute : float or np.ndarray
-        minute angle
+        arcminute, arcmin
     sec : float or np.ndarray
-        second angle
+        arcsecond, arcsec
 
     Returns
     -------
@@ -184,7 +186,8 @@ def hms2deg(hour: float | np.ndarray,
 
     Notes
     -----
-    NA
+    deg = hour + min/60 + sec/3600 (not the x15 conversion of right-ascension
+    hours), consistent with the mean obliquity 23 deg 26' 21.448".
 
     References
     ----------
@@ -193,12 +196,13 @@ def hms2deg(hour: float | np.ndarray,
     Revisions
     ---------
     20210419  y.yoshimura
+    20260707  y.yoshimura, removed the wrong x15 on the hour term (DMS -> deg)
 
     See also
     --------
-    NA
+    obliquity
     """
-    out = hour * 15.0 + (minute * 60 + sec) / 3600.0
+    out = hour + (minute * 60 + sec) / 3600.0
 
     return out
 
@@ -239,6 +243,44 @@ def s2day(s: float | np.ndarray) -> float | np.ndarray:
     day = s / 24.0 / 60.0 / 60.0
 
     return day
+
+
+# %[appendix]{"version":"1.0"}
+
+
+def day2s(day: float | np.ndarray) -> float | np.ndarray:
+    """
+    # transform days to seconds
+
+    Parameters
+    ----------
+    day : float or np.ndarray
+        time in days
+
+    Returns
+    -------
+    s : float or np.ndarray
+        time in seconds
+
+    Notes
+    -----
+    Inverse of s2day.
+
+    References
+    ----------
+    NA
+
+    Revisions
+    ---------
+    20260707  y.yoshimura
+
+    See also
+    --------
+    s2day
+    """
+    s = day * 24.0 * 60.0 * 60.0
+
+    return s
 
 
 # %[appendix]{"version":"1.0"}

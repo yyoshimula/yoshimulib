@@ -207,6 +207,7 @@ def calc_area_obj(sat: SatelliteModel) -> tuple[np.ndarray, np.ndarray]:
 
     Revisions
     ---------
+    20260707  y.yoshimura - quad area as the sum of two triangles (exact for non-rectangular quads)
     20250120  y.yoshimura - support for mixed tri/quad meshes
     20210209  y.yoshimura
 
@@ -222,7 +223,7 @@ def calc_area_obj(sat: SatelliteModel) -> tuple[np.ndarray, np.ndarray]:
         face = sat.faces[i]
 
         # Check if triangle or quad
-        if face[3] < 0:  # triangle
+        if len(face) == 3 or face[3] < 0:  # triangle
             n_polygon = 3
         else:  # quad
             n_polygon = 4
@@ -243,7 +244,11 @@ def calc_area_obj(sat: SatelliteModel) -> tuple[np.ndarray, np.ndarray]:
             pos_sum = (sat.vertices[face[0]] + sat.vertices[face[1]] +
                        sat.vertices[face[2]] + sat.vertices[face[3]])
             pos[i] = pos_sum / 4.0
-            area[i] = np.linalg.norm(cross_A)
+
+            # Planar quad area = triangle (1,2,3) + triangle (1,3,4). Equal to
+            # |vA x vB| for rectangular panels and exact for other quads.
+            vC = sat.vertices[face[3]] - sat.vertices[face[0]]  # v1 -> v4
+            area[i] = (np.linalg.norm(cross_A) + np.linalg.norm(np.cross(vB, vC))) / 2.0
 
     return area, pos
 

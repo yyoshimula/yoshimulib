@@ -46,6 +46,8 @@ def oe2roe(chief: np.ndarray, deputy: np.ndarray, anomaly_flag: int) -> np.ndarr
     Revisions
     ---------
     20211027  y.yoshimura
+    20261005  y.yoshimura, fix: RAAN difference wrapped to [-pi, pi) (chief and
+              deputy RAAN on both sides of 0/2pi)
 
     See also
     --------
@@ -53,12 +55,13 @@ def oe2roe(chief: np.ndarray, deputy: np.ndarray, anomaly_flag: int) -> np.ndarr
     """
     assert anomaly_flag in [0, 1], "anomaly_flag must be 0 or 1"
 
-    chief = np.atleast_2d(chief)
-    deputy = np.atleast_2d(deputy)
+    # copies: the inputs must not be modified
+    chief = np.array(chief, dtype=float, ndmin=2)
+    deputy = np.array(deputy, dtype=float, ndmin=2)
 
-    # Wrap angles to [0, 2pi]
-    chief[:, 4:6] = np.mod(chief[:, 4:6], 2 * np.pi)
-    deputy[:, 4:6] = np.mod(deputy[:, 4:6], 2 * np.pi)
+    # Wrap RAAN, w, f/M to [0, 2pi)
+    chief[:, 3:6] = np.mod(chief[:, 3:6], 2 * np.pi)
+    deputy[:, 3:6] = np.mod(deputy[:, 3:6], 2 * np.pi)
 
     if anomaly_flag == 1:
         m_c = mean_anomaly(chief[:, 1], chief[:, 5])
@@ -84,12 +87,16 @@ def oe2roe(chief: np.ndarray, deputy: np.ndarray, anomaly_flag: int) -> np.ndarr
     raan_d = deputy[:, 3]
 
     # ROEs
+    # RAAN difference wrapped to [-pi, pi): raan_c and raan_d are in [0, 2pi), so
+    # their plain difference jumps by 2pi when the two straddle 0/2pi
+    d_raan = wrap_pi(raan_d - raan_c)
+
     delta_a = (a_d - a_c) / a_c
-    delta_lambda = u_d - u_c + (raan_d - raan_c) * np.cos(inc_c)
+    delta_lambda = u_d - u_c + d_raan * np.cos(inc_c)
     delta_ex = ex_d - ex_c
     delta_ey = ey_d - ey_c
     delta_ix = inc_d - inc_c
-    delta_iy = (raan_d - raan_c) * np.sin(inc_c)
+    delta_iy = d_raan * np.sin(inc_c)
 
     delta_lambda = wrap_pi(delta_lambda)
 
@@ -269,10 +276,12 @@ def roe2deputy_oe(roe: np.ndarray, chief_oe: np.ndarray, anomaly_flag: int) -> n
     -------
     deputy_oe : np.ndarray
         deputy absolute orbital elements, n x 6
+        (raan, w and the anomaly are wrapped to [0, 2pi))
 
     Revisions
     ---------
     20211027  y.yoshimura
+    20261001  y.yoshimura, equatorial chief handled row by row (raan = chief raan)
     """
     from ..orbit.kepler import true_anomaly as calc_true_anomaly
 
@@ -299,8 +308,10 @@ def roe2deputy_oe(roe: np.ndarray, chief_oe: np.ndarray, anomaly_flag: int) -> n
     # Recover deputy parameters
     a_d = a_c * (1 + roe[:, 0])
 
-    d_raan = roe[:, 5] / np.sin(inc_c)
-    raan_d = raan_c + d_raan
+    # Equatorial chief (row by row): raan is kept at the chief's value
+    equatorial = inc_c < np.finfo(float).eps
+    d_raan = np.where(equatorial, 0.0, roe[:, 5] / np.where(equatorial, 1.0, np.sin(inc_c)))
+    raan_d = np.mod(raan_c + d_raan, 2 * np.pi)
 
     d_u = roe[:, 1] - d_raan * np.cos(inc_c)
     u_d = u_c + d_u
@@ -309,7 +320,7 @@ def roe2deputy_oe(roe: np.ndarray, chief_oe: np.ndarray, anomaly_flag: int) -> n
     ey_d = ey_c + roe[:, 3]
 
     e_d = np.sqrt(ex_d ** 2 + ey_d ** 2)
-    w_d = np.arctan2(ey_d, ex_d)
+    w_d = np.mod(np.arctan2(ey_d, ex_d), 2 * np.pi)
 
     inc_d = inc_c + roe[:, 4]
 

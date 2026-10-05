@@ -38,7 +38,7 @@ srp
 lightcurves
     Synthetic light curve generation using BRDF models
 environment
-    Space environment models (IGRF-12, Jaccia-Bowman)
+    Space environment models (IGRF-12, Jaccia-Bowman, Jacchia-Roberts 1971)
 sun_moon
     Solar and lunar ephemerides
 hifi_srp

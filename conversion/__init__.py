@@ -12,6 +12,7 @@ from .units import (
     arcs2rad,
     hms2deg,
     s2day,
+    day2s,
 )
 
 from .calendar import (
@@ -20,7 +21,7 @@ from .calendar import (
 
 __all__ = [
     # units
-    'au2km', 'km2au', 'rad2arcs', 'arcs2rad', 'hms2deg', 's2day',
+    'au2km', 'km2au', 'rad2arcs', 'arcs2rad', 'hms2deg', 's2day', 'day2s',
     # calendar
     'gc2jd',
 ]

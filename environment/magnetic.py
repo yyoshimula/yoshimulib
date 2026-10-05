@@ -107,17 +107,19 @@ def geodetic_igrf(jd: float, lat: float, lon: float, alt: float,
     Revisions
     ---------
     20210428  y.yoshimura
+    20260707  y.yoshimura, exact decimal year (fraction of the actual year length)
 
     See also
     --------
     igrf12
     """
     from ..time_utils import jd2gc
+    from ..conversion import gc2jd
 
-    # Convert JD to year
-    year, month, day, hour, minute, second = jd2gc(jd)
-    # Decimal year
-    year_decimal = year + (month - 1) / 12.0 + (day - 1) / 365.25
+    year = jd2gc(jd)[0]
+    # decimal year for IGRF coefficient interpolation
+    jd_year_start = gc2jd(year, 1, 1, 0, 0, 0)
+    year_decimal = year + (jd - jd_year_start) / (gc2jd(year + 1, 1, 1, 0, 0, 0) - jd_year_start)
 
     b = igrf12(year_decimal, alt, lat, lon)
 

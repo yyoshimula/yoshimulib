@@ -195,3 +195,54 @@ def mjd2jd(mjd: float | np.ndarray) -> float | np.ndarray:
 
 
 # %[appendix]{"version":"1.0"}
+
+
+def doy2gc(year: int | np.ndarray, doy: float | np.ndarray) -> tuple:
+    """
+    # convert day of year to Gregorian calendar date
+
+    Parameters
+    ----------
+    year : int or np.ndarray
+        year
+    doy : float or np.ndarray
+        fractional day of year (1-based, 1.0 .. 366.x)
+
+    Returns
+    -------
+    month : int or np.ndarray
+        month
+    day : int or np.ndarray
+        day
+    hour : int or np.ndarray
+        hour
+    minute : int or np.ndarray
+        minute
+    second : float or np.ndarray
+        second
+
+    Notes
+    -----
+    NA
+
+    References
+    ----------
+    NA
+
+    Revisions
+    ---------
+    20260317  y.yoshimura
+
+    See also
+    --------
+    gc2jd, jd2gc
+    """
+    from ..conversion import gc2jd
+
+    jd = gc2jd(year, 1, 1, 0, 0, 0) + doy - 1
+    _, month, day, hour, minute, second = jd2gc(jd)
+
+    return month, day, hour, minute, second
+
+
+# %[appendix]{"version":"1.0"}

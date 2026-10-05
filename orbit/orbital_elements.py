@@ -119,7 +119,10 @@ def rv2oe(r: np.ndarray, v: np.ndarray, mu: float) -> np.ndarray:
 
     Notes
     -----
-    NA
+    Circular and equatorial orbits follow Vallado's rv2coe conventions:
+    circular: w = 0 and nu is the argument of latitude (inclined) or the
+    true longitude (equatorial); equatorial: raan = 0 and w is the true
+    longitude of perigee.
 
     References
     ----------
@@ -129,6 +132,7 @@ def rv2oe(r: np.ndarray, v: np.ndarray, mu: float) -> np.ndarray:
     Revisions
     ---------
     20221110  y.yoshimura
+    20260706  y.yoshimura, circular/equatorial orbits follow Vallado's rv2coe conventions
 
     See also
     --------
@@ -169,6 +173,14 @@ def rv2oe(r: np.ndarray, v: np.ndarray, mu: float) -> np.ndarray:
     # Inclination
     inc = np.arccos(h[:, 2] / h_norm)
 
+    # Type of orbits (circular / equatorial detection tolerance, as in oe2rv)
+    small = 1.0e-10
+    circular = e < small
+    equatorial = (inc < small) | (np.abs(inc - np.pi) < small)
+
+    # The angles below that are undefined for circular/equatorial orbits
+    # (0/0) are overwritten at the end
+
     # RAAN
     n_norm = np.linalg.norm(n_vec, axis=1)
     raan = np.arccos(np.clip(n_vec[:, 0] / np.maximum(n_norm, eps), -1, 1))
@@ -180,10 +192,38 @@ def rv2oe(r: np.ndarray, v: np.ndarray, mu: float) -> np.ndarray:
     rdot_v = np.sum(r * v, axis=1)
     nu = np.where(rdot_v < 0, 2 * np.pi - nu, nu)
 
-    # Argument of perigee
+    # Argument of latitude (for circular inclined orbits)
+    u = np.sum(r * n_vec, axis=1) / (r_norm.flatten() * np.maximum(n_norm, eps))
+    u = np.arccos(np.clip(u, -1, 1))
+    u = np.where(r[:, 2] < 0, 2 * np.pi - u, u)
+
+    # True longitude (for circular equatorial orbits)
+    true_lon = np.arccos(np.clip(r[:, 0] / np.maximum(r_norm.flatten(), eps), -1, 1))
+    true_lon = np.where(r[:, 1] < 0, 2 * np.pi - true_lon, true_lon)
+    true_lon = np.where(inc >= np.pi / 2, 2 * np.pi - true_lon, true_lon)
+
+    # Argument of perigee (elliptical inclined orbits)
     ndot_e = np.sum(n_vec * e_vec, axis=1) / (np.maximum(n_norm, eps) * np.maximum(e, eps))
     w = np.arccos(np.clip(ndot_e, -1, 1))
     w = np.where(e_vec[:, 2] < 0, 2 * np.pi - w, w)
+
+    # Elliptical, parabolic, hyperbolic equatorial orbits:
+    # w is the true longitude of perigee
+    w_ee = np.arccos(np.clip(e_vec[:, 0] / np.maximum(e, eps), -1, 1))
+    w_ee = np.where(e_vec[:, 1] < 0, 2 * np.pi - w_ee, w_ee)
+    w_ee = np.where(inc >= np.pi / 2, 2 * np.pi - w_ee, w_ee)
+    w = np.where(equatorial & ~circular, w_ee, w)
+
+    # Circular orbits: w is undefined and set to 0
+    w = np.where(circular, 0.0, w)
+
+    # Circular inclined: nu is the argument of latitude, measured from the
+    # ascending node; circular equatorial: nu is the true longitude
+    nu = np.where(circular & ~equatorial, u, nu)
+    nu = np.where(circular & equatorial, true_lon, nu)
+
+    # Equatorial orbits: raan is undefined and set to 0
+    raan = np.where(equatorial, 0.0, raan)
 
     oe = np.column_stack([a, e, inc, raan, w, nu])
 

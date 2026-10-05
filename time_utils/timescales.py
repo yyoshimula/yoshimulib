@@ -55,6 +55,9 @@ def leap_s() -> np.ndarray:
     -----
     leap_s() returns the leap second table.
     Use the result as input to dat() function.
+    A leap second is inserted at the end of the insertion day (23:59:60 UTC),
+    so the new TAI-UTC takes effect from 00:00 UTC on the following day.
+    leap_jd[:, 0] is the JD of that effective date.
 
     References
     ----------
@@ -81,13 +84,13 @@ def leap_s() -> np.ndarray:
 # %[appendix]{"version":"1.0"}
 
 
-def dat(jd: float, leap_jd: np.ndarray) -> float:
+def dat(jd: float | np.ndarray, leap_jd: np.ndarray) -> float | np.ndarray:
     """
     # calculating delta_AT (= TAI - UTC)
 
     Parameters
     ----------
-    jd : float
+    jd : float or np.ndarray
         Julian day, day
     leap_jd : np.ndarray
         n x 2 array with [Julian day, cumulative leap seconds]
@@ -95,12 +98,13 @@ def dat(jd: float, leap_jd: np.ndarray) -> float:
 
     Returns
     -------
-    delta_at : float
-        TAI - UTC in seconds
+    delta_at : float or np.ndarray
+        TAI - UTC in seconds (same shape as jd)
 
     Notes
     -----
     Execute leap_s() first and use its result as leap_jd argument.
+    jd may be a scalar or an array.
 
     References
     ----------
@@ -110,21 +114,24 @@ def dat(jd: float, leap_jd: np.ndarray) -> float:
     Revisions
     ---------
     20230605  y.yoshimura, y.yoshimula@gmail.com
+    20260706  vectorized for jd input, y.yoshimura
 
     See also
     --------
     leap_s
     """
-    # Search from most recent backwards
-    i = len(leap_jd) - 1
-    while i >= 0 and jd < leap_jd[i, 0]:
-        i -= 1
+    jd = np.asarray(jd, dtype=float)
+    leap_jd = np.atleast_2d(leap_jd)
 
-    if i < 0:
-        # Before 1972-01-01
-        delta_at = 10.0
-    else:
-        delta_at = leap_jd[i, 1] + 10.0
+    # Number of entries whose effective JD (leap_jd[:, 0]) is not after jd
+    n = np.sum(jd[..., np.newaxis] >= leap_jd[:, 0], axis=-1)
+
+    # n = 0 (before the first leap second): TAI - UTC = 10 s (since 1972-1-1)
+    cum_leap = np.concatenate(([0.0], leap_jd[:, 1]))
+    delta_at = 10.0 + cum_leap[n]
+
+    if delta_at.ndim == 0:
+        return float(delta_at)
 
     return delta_at
 
